@@ -99,15 +99,9 @@ def pep(session):
             if pep_status not in EXPECTED_STATUS[status_tags[i].text[1]]:
                 logging.info(f'{PEP} {status_tags[i].text[1]}, {pep_status}')
             else:
-                if pep_status in status_count:
-                    status_count[pep_status] += 1
-                else:
-                    status_count[pep_status] = 1
+                status_count[pep_status] = status_count.get(pep_status, 0) + 1
         except IndexError:
-            if pep_status in status_count:
-                status_count[pep_status] += 1
-            else:
-                status_count[pep_status] = 1
+            status_count[pep_status] = status_count.get(pep_status, 0) + 1
         i += 1
     status_list = []
     status_list.append(["Статус", "Количество"])
