@@ -1,9 +1,8 @@
-# main.py
-# Импортируйте модуль для работы с логами.
 import logging
 import requests_cache
 import re
-# Дополните импорт из файла configs функцией configure_logging().
+from collections import defaultdict
+
 from urllib.parse import urljoin
 from bs4 import BeautifulSoup
 from tqdm import tqdm
@@ -31,7 +30,6 @@ def whats_new(session):
         version_a_tag = find_tag(section, 'a')
         href = version_a_tag['href']
         version_link = urljoin(whats_new_url, href)
-        print(version_link)
         response = get_response(session, version_link)
         if response is None:
             continue
@@ -82,7 +80,8 @@ def pep(session):
     pep_tags = soup.find_all('a', attrs={'class': 'pep reference internal'})
     status_tags = soup.find_all('abbr')
     i = 2
-    status_count = {}
+    status_count = defaultdict(int)
+    logs = []
     for pep in tqdm(pep_tags[1:-2:2]):
         href = pep['href']
         version_link = urljoin(PEP, href)
@@ -97,20 +96,18 @@ def pep(session):
             if len(status_tags[i].text) == 1:
                 status_tags[i].string += ' '
             if pep_status not in EXPECTED_STATUS[status_tags[i].text[1]]:
-                logging.info(f'{PEP} {status_tags[i].text[1]}, {pep_status}')
+                logs.append(f'{PEP} {status_tags[i].text[1]}, {pep_status}')
             else:
-                status_count[pep_status] = status_count.get(pep_status, 0) + 1
+                status_count[pep_status] += 1
         except IndexError:
-            status_count[pep_status] = status_count.get(pep_status, 0) + 1
+            status_count[pep_status] += 1
         i += 1
-    status_list = []
-    status_list.append(["Статус", "Количество"])
-
-    for status, count in status_count.items():
-        status_list.append([status, count])
+    status_list = [['Статус', 'Количество']]
+    status_list.extend(status_count.items())
 
     total_count = sum(status_count.values())
-    status_list.append(["Total", total_count])
+    status_list.append(['Total', total_count])
+    logging.info('\n'.join(logs))
     return status_list
 
 
@@ -133,7 +130,9 @@ def download(session):
     downloads_dir = BASE_DIR / 'downloads'
     downloads_dir.mkdir(exist_ok=True)
     archive_path = downloads_dir / filename
-    response = session.get(archive_url)
+    response = get_response(session, archive_url)
+    if response is None:
+        return
     with open(archive_path, 'wb') as file:
         file.write(response.content)
     logging.info(f'Архив был загружен и сохранён: {archive_path}')
